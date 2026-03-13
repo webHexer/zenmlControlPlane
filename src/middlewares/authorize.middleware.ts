@@ -30,10 +30,6 @@ export const requirePermission =
         action,
       });
 
-      console.log(
-        `Authorizing action: role=${req.context!.role}, resource=${resource}, action=${action} -> allowed=${allowed}`,
-      );
-
       if (!allowed) {
         throw new AppError("Access denied", 403);
       }

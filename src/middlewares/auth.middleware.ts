@@ -3,6 +3,7 @@ import { findWorkspaceByName } from "../repositories/workspace.repository";
 import { findIdentity } from "../repositories/identity.repository";
 import { AppError } from "../utils/AppError";
 import { findAuthSession } from "../repositories/authSession.repository";
+import { sessionCache } from "../cache/session.cache";
 
 export const authenticate = async (
   req: Request,
@@ -11,6 +12,22 @@ export const authenticate = async (
 ) => {
   try {
     const { workspaceName, grantedByJNJUsername, jnjUsername } = req.body;
+
+    const userNameForCache = (jnjUsername ?? grantedByJNJUsername)
+      .trim()
+      .toLowerCase();
+
+    const cacheKey = `${workspaceName.trim().toLowerCase()}:${userNameForCache}`;
+
+    // 1 Try cache first
+    const cached = sessionCache.get(cacheKey);
+    if (cached) {
+      console.log(`Session cache hit for key ${cacheKey}`);
+      req.context = cached;
+      return next();
+    }
+
+    // 2 Fetch from DB if not in cache
 
     if (!workspaceName || !(grantedByJNJUsername || jnjUsername)) {
       throw new AppError("workspaceName and username required", 400);
@@ -44,12 +61,18 @@ export const authenticate = async (
 
     const token = session.credentials;
 
-    req.context = {
+    const context = {
       workspace,
       token,
       role: identity.role,
       identity,
     };
+
+    // Store in cache for subsequent requests
+    sessionCache.set(cacheKey, context);
+    console.log(`Session cached for key ${cacheKey}`);
+
+    req.context = context;
 
     next();
   } catch (err) {
