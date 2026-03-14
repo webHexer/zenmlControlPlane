@@ -1,9 +1,12 @@
 export const zenmlRequest = async (
   url: string,
-  method: string,
-  token?: string,
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
   body?: any,
+  token?: string,
 ) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 2000);
+
   try {
     const response = await fetch(url, {
       method,
@@ -11,17 +14,18 @@ export const zenmlRequest = async (
         "Content-Type": "application/json",
         ...(token && { Authorization: `Bearer ${token}` }),
       },
-      body: body ? JSON.stringify(body) : undefined,
+      body: method !== "GET" && body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
     });
 
+    clearTimeout(timeout);
+
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`ZenML API Error: ${errorText}`);
+      throw new Error(`ZenML API Error: ${response.status}`);
     }
 
     return await response.json();
   } catch (error: any) {
-    // Normalize error
     throw new Error(`ZenML Client Error: ${error.message}`);
   }
 };

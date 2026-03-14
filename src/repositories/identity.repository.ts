@@ -1,9 +1,9 @@
 import { WorkspaceIdentity } from "../models/workspaceIdentity.model";
 import { Types } from "mongoose";
 
-interface StoreIdentityParams {
+interface saveIdentityToDBParams {
   workspaceId: Types.ObjectId;
-  grantedToJNJUsername: string;
+  jnjUsername: string;
   identityType: string;
   status: string;
   serviceAccount?: Types.ObjectId;
@@ -17,9 +17,6 @@ export const findIdentity = async (
   jnjUsername: string,
   status?: string,
 ) => {
-  console.log(
-    `Finding identity for workspaceId: ${workspaceId}, jnjUsername: ${jnjUsername}, status: ${status || "active"}`,
-  );
   return WorkspaceIdentity.findOne({
     workspace: workspaceId,
     jnjUsername,
@@ -27,15 +24,15 @@ export const findIdentity = async (
   }).populate("serviceAccount");
 };
 
-export const storeIdentity = async (data: StoreIdentityParams) => {
+export const saveIdentityToDB = async (data: saveIdentityToDBParams) => {
   return WorkspaceIdentity.findOneAndUpdate(
     {
       workspace: data.workspaceId,
-      jnjUsername: data.grantedToJNJUsername,
+      jnjUsername: data.jnjUsername,
     },
     {
       workspace: data.workspaceId,
-      jnjUsername: data.grantedToJNJUsername,
+      jnjUsername: data.jnjUsername,
       identityType: data.identityType,
       status: data.status,
       serviceAccount: data.serviceAccount,

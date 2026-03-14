@@ -1,7 +1,10 @@
 import { Request } from "express";
-import { zenmlRequest } from "../../clients/zenml.client";
-import { storeIdentity } from "../../repositories/identity.repository";
+import { saveIdentityToDB } from "../../repositories/identity.repository";
 import { createServiceAccountRecord } from "../../repositories/serviceAccount.repository";
+import {
+  activateServiceUser,
+  createServiceUser,
+} from "../../clients/serviceUser.client";
 
 export const createServiceAccount = async (req: Request) => {
   try {
@@ -9,28 +12,30 @@ export const createServiceAccount = async (req: Request) => {
       req.body;
     const { workspace, token } = req.context!;
 
+    const serviceUserPayload = {
+      name: serviceAccountUsername,
+      description,
+      active: true,
+    };
     // Create service account in ZenML server
-    const serviceAccountData = await zenmlRequest(
-      `${workspace.zenmlServerUrl}/api/v1/service_accounts`,
-      "POST",
+    const serviceUser = await createServiceUser(
+      workspace.zenmlServerUrl,
+      serviceUserPayload,
       token,
-      {
-        name: serviceAccountUsername,
-        description,
-        active: true,
-      },
     );
 
     const apiKeyName = `${serviceAccountUsername}-api-key`;
-    // Create API key for the service account
-    const apiKeyData = await zenmlRequest(
-      `${workspace.zenmlServerUrl}/api/v1/service_accounts/${serviceAccountData.id}/api_keys`,
-      "POST",
+    const activateServiceUserPayload = {
+      name: apiKeyName,
+      description: `${serviceAccountUsername} API key`,
+    };
+
+    // Activate service account and get api key
+    const activatedServiceUserData = await activateServiceUser(
+      workspace.zenmlServerUrl,
+      serviceUser.id,
+      activateServiceUserPayload,
       token,
-      {
-        name: apiKeyName,
-        description: `${serviceAccountUsername} API key`,
-      },
     );
 
     // create service account record in our database and map it to the user identity
@@ -38,16 +43,16 @@ export const createServiceAccount = async (req: Request) => {
       workspaceId: workspace._id,
       grantedToJNJUsername,
       serviceAccountUsername,
-      serviceAccountId: serviceAccountData.id,
+      serviceAccountId: serviceUser.id,
       description,
-      apiKey: apiKeyData.body.key,
+      apiKey: activatedServiceUserData.body.key,
       apiKeyName,
     });
 
     // Store the service account as an identity in our database and map it to the user identity
-    await storeIdentity({
+    await saveIdentityToDB({
       workspaceId: workspace._id,
-      grantedToJNJUsername,
+      jnjUsername: grantedToJNJUsername,
       identityType: "service",
       status: "active",
       serviceAccount: serviceAccount._id,

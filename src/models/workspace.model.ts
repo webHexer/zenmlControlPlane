@@ -15,6 +15,11 @@ const workspaceSchema = new mongoose.Schema(
       unique: true,
     },
 
+    containerId: {
+      type: String,
+      required: true,
+    },
+
     zenmlServerUrl: {
       type: String,
       required: true,
