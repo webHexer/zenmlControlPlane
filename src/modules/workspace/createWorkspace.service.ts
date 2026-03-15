@@ -6,10 +6,11 @@ import {
 
 import { createZenMLInstance, destroyZenMLInstance } from "./docker.service";
 import { waitForZenML } from "../../utils/waitForZenml";
-import { saveIdentityToDB } from "../../repositories/identity.repository";
+import { saveIdentityInDB } from "../../repositories/identity.repository";
 import mongoose from "mongoose";
 import { generateZenMLPassword } from "../../utils/credentialGenerator";
 import { encrypt } from "../../utils/crypto";
+import { saveUserAccountInDB } from "../../repositories/userAccount.repository";
 
 interface CreateWorkspaceParams {
   workspaceName: string;
@@ -30,8 +31,10 @@ const buildActivationPayload = (
 
 export const createWorkspaceService = async (params: CreateWorkspaceParams) => {
   let containerId: string | undefined;
+
   const session = await mongoose.startSession();
   session.startTransaction();
+
   console.log(
     `Starting transaction for creating workspace ${params.workspaceName}`,
   );
@@ -41,7 +44,8 @@ export const createWorkspaceService = async (params: CreateWorkspaceParams) => {
 
     // 1 Generate credentials
     // const zenmlUsername = generateZenMLUsername();
-    const encryptedPassword = encrypt(generateZenMLPassword());
+    const rawPassword = generateZenMLPassword();
+    const encryptedPassword = encrypt(rawPassword);
 
     // 2 Create container
     const instance = await createZenMLInstance();
@@ -54,10 +58,14 @@ export const createWorkspaceService = async (params: CreateWorkspaceParams) => {
       getWorkspaceInfo(zenmlServerUrl),
     );
 
+    if (!workspaceInfo) {
+      throw new Error("Failed to retrieve workspace info after ZenML startup");
+    }
+
     // 4 Activate workspace
     await activateWorkspace(
       zenmlServerUrl,
-      buildActivationPayload(zenmlUsername, encryptedPassword, workspaceName),
+      buildActivationPayload(zenmlUsername, rawPassword, workspaceName),
     );
 
     // 5 Save workspace
@@ -71,21 +79,30 @@ export const createWorkspaceService = async (params: CreateWorkspaceParams) => {
       session,
     );
 
-    // 6 Save identity
-    await saveIdentityToDB(
+    // 6 Save user account
+    const userAccount = await saveUserAccountInDB(
       {
-        workspaceId: workspace._id,
+        workspace: workspace._id,
         jnjUsername,
         zenmlUsername,
         zenmlPassword: encryptedPassword,
-        identityType: "user",
-        status: "active",
         role: "admin",
       },
       session,
     );
 
-    // 7 Commit transaction
+    // 7 Save identity mapping
+    await saveIdentityInDB(
+      {
+        workspace: workspace._id,
+        jnjUsername,
+        accountType: "UserAccount",
+        account: userAccount._id,
+      },
+      session,
+    );
+
+    // 8 Commit transaction
     await session.commitTransaction();
 
     return {
@@ -99,7 +116,7 @@ export const createWorkspaceService = async (params: CreateWorkspaceParams) => {
     if (containerId) {
       await destroyZenMLInstance(containerId);
     }
-    throw error;
+    throw new Error("Failed to create workspace");
   } finally {
     session.endSession();
   }

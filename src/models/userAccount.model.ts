@@ -1,20 +1,35 @@
 import mongoose from "mongoose";
 
-const userSchema = new mongoose.Schema({
-  username: {
-    type: String,
-    required: true,
-    unique: true,
-  },
-  password: {
-    type: String,
-    required: true,
-    select: false, // 🔐 hides password by default
-  },
-  workspaces: {
-    type: [String],
-    default: [],
-  },
-});
+const userAccountSchema = new mongoose.Schema(
+  {
+    workspace: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Workspace",
+      required: true,
+    },
 
-export const User = mongoose.model("User", userSchema);
+    jnjUsername: {
+      type: String,
+      required: true,
+    },
+
+    zenmlUsername: {
+      type: String,
+      required: true,
+    },
+
+    zenmlPassword: {
+      type: String,
+      required: true,
+    },
+
+    role: {
+      type: String,
+      enum: ["admin", "developer", "viewer"],
+      default: "viewer",
+    },
+  },
+  { timestamps: true },
+);
+
+export const UserAccount = mongoose.model("UserAccount", userAccountSchema);

@@ -1,4 +1,3 @@
-// models/serviceAccount.model.ts
 import mongoose from "mongoose";
 
 const ServiceAccountSchema = new mongoose.Schema(
@@ -14,7 +13,7 @@ const ServiceAccountSchema = new mongoose.Schema(
       required: true,
     },
 
-    serviceAccountUsername: {
+    serviceUsername: {
       type: String,
       required: true,
     },
@@ -37,6 +36,7 @@ const ServiceAccountSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+
     role: {
       type: String,
       enum: ["admin", "developer", "viewer"],

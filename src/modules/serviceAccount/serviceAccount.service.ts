@@ -1,13 +1,14 @@
 import { Request } from "express";
 import mongoose from "mongoose";
 
-import { saveIdentityToDB } from "../../repositories/identity.repository";
+import { saveIdentityInDB } from "../../repositories/identity.repository";
 import { createServiceAccountRecord } from "../../repositories/serviceAccount.repository";
 import {
   activateServiceUser,
   createServiceUser,
   deleteServiceUser,
 } from "../../clients/serviceUser.client";
+import { AppError } from "../../utils/AppError";
 
 export const createServiceAccount = async (req: Request) => {
   const { serviceUsername, description, grantedToJNJUsername, role } = req.body;
@@ -16,8 +17,11 @@ export const createServiceAccount = async (req: Request) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
+  // used for rollback
+  let rollbackServiceUserId: string | undefined;
+
   try {
-    // 1️⃣ Create service account in ZenML
+    // 1 Create service user in ZenML
     const serviceUserPayload = {
       name: serviceUsername,
       description,
@@ -30,7 +34,16 @@ export const createServiceAccount = async (req: Request) => {
       token,
     );
 
-    // 2️⃣ Generate API key for service account
+    console.log("Service user created in ZenML with ID:", serviceUser);
+
+    if (!serviceUser?.id) {
+      throw new AppError("Failed to create service user in ZenML");
+    }
+
+    const serviceUserId = serviceUser.id;
+    rollbackServiceUserId = serviceUserId;
+
+    // 2 Generate API key
     const apiKeyName = `${serviceUsername}-api-key`;
 
     const activateServiceUserPayload = {
@@ -40,41 +53,50 @@ export const createServiceAccount = async (req: Request) => {
 
     const activatedServiceUser = await activateServiceUser(
       workspace.zenmlServerUrl,
-      serviceUser.id,
+      serviceUserId,
       activateServiceUserPayload,
       token,
     );
 
-    const apiKey = activatedServiceUser.body.key;
+    const apiKey = activatedServiceUser?.body?.key;
 
-    // 3️⃣ Save service account record in DB
-    const serviceAccountData = {
-      workspaceId: workspace._id,
-      grantedToJNJUsername,
-      serviceUsername,
-      serviceAccountId: serviceUser.id,
-      description,
-      apiKey,
-      apiKeyName,
-    };
+    console.log("API key generated for service user:", apiKey);
 
+    if (!apiKey) {
+      throw new AppError("Failed to generate API key for service user");
+    }
+
+    // 3 Save service account in DB
     const serviceAccount = await createServiceAccountRecord(
-      serviceAccountData,
+      {
+        workspace: workspace._id,
+        jnjUsername: grantedToJNJUsername,
+        serviceUsername,
+        serviceAccountId: serviceUserId,
+        description,
+        apiKey,
+        apiKeyName,
+        role,
+      },
       session,
     );
 
-    // 4️⃣ Save identity mapping in DB
-    const identityData = {
-      workspaceId: workspace._id,
-      jnjUsername: grantedToJNJUsername,
-      identityType: "service",
-      status: "active",
-      serviceAccount: serviceAccount._id,
-      role,
-    };
+    if (!serviceAccount) {
+      throw new AppError("Failed to create service account record");
+    }
 
-    await saveIdentityToDB(identityData, session);
+    // 4 Save identity mapping
+    await saveIdentityInDB(
+      {
+        workspace: workspace._id,
+        jnjUsername: grantedToJNJUsername,
+        accountType: "ServiceAccount",
+        account: serviceAccount._id,
+      },
+      session,
+    );
 
+    // 5 Commit transaction
     await session.commitTransaction();
 
     return {
@@ -83,15 +105,16 @@ export const createServiceAccount = async (req: Request) => {
   } catch (error) {
     await session.abortTransaction();
 
-    if (serviceUsername) {
+    // Rollback ZenML service user if created
+    if (rollbackServiceUserId) {
       try {
         await deleteServiceUser(
           workspace.zenmlServerUrl,
-          serviceUsername,
+          rollbackServiceUserId,
           token,
         );
       } catch (rollbackError) {
-        console.error("Failed to rollback ZenML user:", rollbackError);
+        console.error("Failed to rollback ZenML service user:", rollbackError);
       }
     }
 

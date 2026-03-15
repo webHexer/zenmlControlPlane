@@ -8,7 +8,7 @@ interface StoreAuthSessionParams {
   token: string;
   expiresAt?: Date | null;
 }
-export const storeAuthSession = async (data: StoreAuthSessionParams) => {
+export const saveAuthSessionToDB = async (data: StoreAuthSessionParams) => {
   return WorkspaceAuthSession.findOneAndUpdate(
     {
       workspace: data.workspaceId,

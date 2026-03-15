@@ -5,8 +5,8 @@ export const API_ENDPOINTS = {
   DELETE_USER: (zenmlUsername: string) => `/api/v1/users/${zenmlUsername}`,
   ACTIVATE_USER: (userId: string) => `/api/v1/users/${userId}/activate`,
   CREATE_SERVICE_USER: "/api/v1/service_accounts",
-  DELETE_SERVICE_USER: (serviceUser: string) =>
-    `/api/v1/service_accounts/${serviceUser}`,
+  DELETE_SERVICE_USER: (serviceUserId: string) =>
+    `/api/v1/service_accounts/${serviceUserId}`,
   ACTIVATE_SERVICE_USER: (serviceUserId: string) =>
     `/api/v1/service_accounts/${serviceUserId}/api_keys`,
 };

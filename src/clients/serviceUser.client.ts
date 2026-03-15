@@ -25,11 +25,11 @@ export const createServiceUser = async (
 
 export const deleteServiceUser = async (
   zenmlServerUrl: string,
-  serviceUsername: string,
+  serviceUserId: string,
   token: string,
 ) => {
   return zenmlRequest({
-    url: `${zenmlServerUrl}${API_ENDPOINTS.DELETE_SERVICE_USER(serviceUsername)}`,
+    url: `${zenmlServerUrl}${API_ENDPOINTS.DELETE_SERVICE_USER(serviceUserId)}`,
     method: "DELETE",
     token,
   });

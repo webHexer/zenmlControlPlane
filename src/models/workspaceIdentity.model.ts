@@ -15,30 +15,15 @@ const workspaceIdentitySchema = new mongoose.Schema(
       index: true,
     },
 
-    identityType: {
+    accountType: {
       type: String,
-      enum: ["service", "user"],
+      enum: ["UserAccount", "ServiceAccount"], // model names
       required: true,
     },
 
-    serviceAccount: {
+    account: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "ServiceAccount",
-    },
-
-    zenmlUsername: String,
-    zenmlPassword: String,
-
-    role: {
-      type: String,
-      enum: ["admin", "viewer"],
-      required: true,
-    },
-
-    status: {
-      type: String,
-      enum: ["active", "inactive"],
-      default: "active",
+      refPath: "accountType",
     },
   },
   { timestamps: true },

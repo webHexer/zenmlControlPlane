@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import { findWorkspaceByName } from "../repositories/workspace.repository";
 import { findIdentity } from "../repositories/identity.repository";
-import { AppError } from "../utils/AppError";
 import { findAuthSession } from "../repositories/authSession.repository";
+import { AppError } from "../utils/AppError";
 import { sessionCache } from "../cache/session.cache";
 
 export const authenticate = async (
@@ -13,13 +13,15 @@ export const authenticate = async (
   try {
     const { workspaceName, grantedByJNJUsername, jnjUsername } = req.body;
 
-    const userNameForCache = (jnjUsername ?? grantedByJNJUsername)
-      .trim()
-      .toLowerCase();
+    if (!workspaceName || !(grantedByJNJUsername || jnjUsername)) {
+      throw new AppError("workspaceName and username required", 400);
+    }
 
-    const cacheKey = `${workspaceName.trim().toLowerCase()}:${userNameForCache}`;
+    const username = (jnjUsername ?? grantedByJNJUsername).trim().toLowerCase();
 
-    // 1 Try cache first
+    const cacheKey = `${workspaceName.trim().toLowerCase()}:${username}`;
+
+    // 1️⃣ Try cache first
     const cached = sessionCache.get(cacheKey);
     if (cached) {
       console.log(`Session cache hit for key ${cacheKey}`);
@@ -27,33 +29,28 @@ export const authenticate = async (
       return next();
     }
 
-    // 2 Fetch from DB if not in cache
-
-    if (!workspaceName || !(grantedByJNJUsername || jnjUsername)) {
-      throw new AppError("workspaceName and username required", 400);
-    }
-
+    // 2️⃣ Fetch workspace
     const workspace = await findWorkspaceByName(workspaceName);
 
     if (!workspace) {
       throw new AppError("Workspace not found", 404);
     }
 
-    const identity = await findIdentity(
-      workspace._id,
-      jnjUsername ?? grantedByJNJUsername,
-    );
+    // 3️⃣ Fetch identity
+    const identity: any = await findIdentity(workspace._id, username);
 
     if (!identity) {
       throw new AppError("User identity not found", 404);
     }
 
-    if (identity.status !== "active") {
-      throw new AppError("User is not active", 403);
+    const account = identity.account;
+
+    if (!account) {
+      throw new AppError("Account mapping missing", 500);
     }
 
-    // Find session of the user who is granting access, to authenticate with ZenML server
-    const session = await findAuthSession(workspace._id, identity!._id);
+    // 4️⃣ Fetch session
+    const session = await findAuthSession(workspace._id, identity._id);
 
     if (!session) {
       throw new AppError("User not logged in to workspace", 401);
@@ -61,14 +58,18 @@ export const authenticate = async (
 
     const token = session.credentials;
 
+    // 5️⃣ Extract role from account
+    const role = account.role ?? null;
+
     const context = {
       workspace,
       token,
-      role: identity.role,
+      role,
       identity,
+      account,
     };
 
-    // Store in cache for subsequent requests
+    // 6️⃣ Cache session
     sessionCache.set(cacheKey, context);
     console.log(`Session cached for key ${cacheKey}`);
 

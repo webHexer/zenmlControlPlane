@@ -2,13 +2,14 @@ import { ClientSession, Types } from "mongoose";
 import { ServiceAccount } from "../models/serviceAccount.model";
 
 interface StoreServiceAccountInterface {
-  workspaceId: Types.ObjectId;
-  grantedToJNJUsername: string;
+  workspace: Types.ObjectId;
+  jnjUsername: string;
   serviceUsername: string;
   serviceAccountId: string;
   description: string;
   apiKey: string;
   apiKeyName: string;
+  role: string;
 }
 
 export const createServiceAccountRecord = async (
@@ -18,13 +19,14 @@ export const createServiceAccountRecord = async (
   const result = await ServiceAccount.create(
     [
       {
-        workspace: data.workspaceId,
-        jnjUsername: data.grantedToJNJUsername,
-        serviceAccountUsername: data.serviceUsername,
+        workspace: data.workspace,
+        jnjUsername: data.jnjUsername,
+        serviceUsername: data.serviceUsername,
         serviceAccountId: data.serviceAccountId,
         description: data.description,
         apiKey: data.apiKey,
         apiKeyName: data.apiKeyName,
+        role: data.role,
       },
     ],
     { session },

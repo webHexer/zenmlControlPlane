@@ -18,7 +18,7 @@ const router = express.Router();
 // {
 //   "workspaceName": "string",            // required: workspace identifier where the account will live
 //   "grantedByJNJUsername": "string",    // required: JNJ username of the user granting access
-//   "serviceAccountUsername": "string",  // required: the desired username for the service account
+//   "serviceUsername": "string",  // required: the desired username for the service account
 //   "description": "string",             // optional: human-readable description of the account
 //   "grantedToJNJUsername": "string",    // required: JNJ username of the principal receiving the account
 //   "role": "string"                     // required: role to assign (e.g. "admin", "editor", "viewer")
