@@ -2,18 +2,43 @@ import mongoose from "mongoose";
 
 const auditSchema = new mongoose.Schema(
   {
-    userId: String,
-    action: String,
-    resource: String,
-    resourceId: String,
-    method: String,
-    path: String,
-    statusCode: Number,
-    ip: String,
-    userAgent: String,
-    payload: Object,
+    userId: {
+      type: String,
+    },
+
+    method: {
+      type: String,
+      required: true,
+    },
+
+    path: {
+      type: String,
+      required: true,
+    },
+
+    query: {
+      type: Object,
+    },
+
+    body: {
+      type: Object,
+    },
+
+    statusCode: {
+      type: Number,
+    },
+
+    ip: {
+      type: String,
+    },
+
+    userAgent: {
+      type: String,
+    },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+  },
 );
 
-export const AuditLog = mongoose.model("AuditLog", auditSchema);
+export const Audit = mongoose.model("Audit", auditSchema);

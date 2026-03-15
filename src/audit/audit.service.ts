@@ -1,17 +1,9 @@
 import { saveAuditLog } from "../repositories/audit.repository";
-import { AuditEvent } from "./audit.types";
 
-export const createAuditLog = async (event: AuditEvent) => {
+export const createAuditLog = async (data: any) => {
   try {
-    await saveAuditLog({
-      userId: event.userId,
-      action: event.action,
-      resource: event.resource,
-      resourceId: event.resourceId,
-      metadata: event.metadata,
-      ip: event.ip,
-    });
+    await saveAuditLog(data);
   } catch (error) {
-    console.error("Audit log failed", error);
+    console.error("Audit logging failed:", error);
   }
 };

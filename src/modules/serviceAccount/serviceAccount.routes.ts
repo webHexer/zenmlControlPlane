@@ -4,6 +4,7 @@ import { Resource } from "../../authz/resources";
 import { requirePermission } from "../../middlewares/authorize.middleware";
 import { authenticate } from "../../middlewares/auth.middleware";
 import { createServiceAccount } from "./serviceAccount.controller";
+import { auditMiddleware } from "../../middlewares/audit.middleware";
 
 // Note: This router is mounted at /serviceAccount, so the full path for creating a service account will be:
 // POST /serviceAccount/createServiceAccount
@@ -27,11 +28,12 @@ const router = express.Router();
 // POST /serviceAccount/createServiceAccount
 router.post(
   "/createServiceAccount",
-  authenticate, // authenticate the user
+  authenticate,
   requirePermission({
     resource: Resource.SERVICE_ACCOUNT,
-    action: Action.CREATE_SERVICE_ACCOUNT,
-  }), // check if the user has permission to create a service account
+    action: Action.CREATE,
+  }),
+  auditMiddleware,
   createServiceAccount,
 );
 

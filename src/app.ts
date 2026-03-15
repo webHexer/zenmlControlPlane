@@ -9,6 +9,7 @@ import { requirePermission } from "./middlewares/authorize.middleware";
 import { authenticate } from "./middlewares/auth.middleware";
 import { resolveResourceFromPath } from "./authz/resourceResolver";
 import { resolveActionFromMethod } from "./authz/actionResolver";
+import { auditMiddleware } from "./middlewares/audit.middleware";
 
 const app = express();
 
@@ -35,6 +36,7 @@ app.use(
 
     return { resource, action };
   }),
+  auditMiddleware,
   proxyMiddleware,
 );
 

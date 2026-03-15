@@ -13,6 +13,8 @@ export const zenmlRequest = async ({
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 2000);
 
+  console.log(`ZenML Request - ${method} ${url}`);
+
   try {
     const response = await fetch(url, {
       method,

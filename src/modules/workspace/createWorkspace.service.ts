@@ -87,14 +87,8 @@ export const createWorkspaceService = async (params: CreateWorkspaceParams) => {
     // 7 Commit transaction
     await session.commitTransaction();
 
-    console.log(
-      `Workspace ${workspaceName} created successfully with workspace ID ${workspaceInfo.id} and deployed on server ${zenmlServerUrl}`,
-    );
     return {
-      workspaceId: workspaceInfo.id,
-      workspaceName,
-      zenmlServerUrl,
-      containerId,
+      message: `Workspace ${workspaceName} created successfully with workspace ID ${workspaceInfo.id} and deployed on server ${zenmlServerUrl}`,
     };
   } catch (error) {
     await session.abortTransaction();

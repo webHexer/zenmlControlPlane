@@ -1,5 +1,5 @@
-import { AuditLog } from "../models/audit.model";
+import { Audit } from "../models/audit.model";
 
 export const saveAuditLog = async (data: any) => {
-  return AuditLog.create(data);
+  return Audit.create(data);
 };
