@@ -1,5 +1,5 @@
 import { WorkspaceIdentity } from "../models/workspaceIdentity.model";
-import { Types } from "mongoose";
+import { ClientSession, Types } from "mongoose";
 
 interface saveIdentityToDBParams {
   workspaceId: Types.ObjectId;
@@ -24,7 +24,10 @@ export const findIdentity = async (
   }).populate("serviceAccount");
 };
 
-export const saveIdentityToDB = async (data: saveIdentityToDBParams) => {
+export const saveIdentityToDB = async (
+  data: saveIdentityToDBParams,
+  session?: ClientSession,
+) => {
   return WorkspaceIdentity.findOneAndUpdate(
     {
       workspace: data.workspaceId,
@@ -40,6 +43,6 @@ export const saveIdentityToDB = async (data: saveIdentityToDBParams) => {
       zenmlPasswordEncrypted: data.zenmlPasswordEncrypted,
       role: data.role,
     },
-    { upsert: true, new: true },
+    { upsert: true, new: true, session },
   );
 };

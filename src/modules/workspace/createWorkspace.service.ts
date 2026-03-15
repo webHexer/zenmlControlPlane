@@ -4,68 +4,108 @@ import {
   getWorkspaceInfo,
 } from "../../clients/createWorkspace.client";
 
-import { createZenMLInstance } from "./docker.service";
+import { createZenMLInstance, destroyZenMLInstance } from "./docker.service";
 import { waitForZenML } from "../../utils/waitForZenml";
 import { saveIdentityToDB } from "../../repositories/identity.repository";
-import { encrypt } from "../../utils/crypto";
+import mongoose from "mongoose";
+import { generateZenMLPassword } from "../../utils/credentialGenerator";
 
 interface CreateWorkspaceParams {
-  zenmlUsername: string;
-  zenmlPassword: string;
   workspaceName: string;
   jnjUsername: string;
+  zenmlUsername: string;
 }
 
-export const createWorkspaceService = async ({
-  zenmlUsername,
-  zenmlPassword,
-  workspaceName,
-  jnjUsername,
-}: CreateWorkspaceParams) => {
-  // 1️⃣ Create new ZenML container
-  const { url: zenmlServerUrl, containerId } = await createZenMLInstance();
+// Helper to build activation payload
+const buildActivationPayload = (
+  username: string,
+  password: string,
+  workspaceName: string,
+) => ({
+  admin_username: username,
+  admin_password: password,
+  server_name: workspaceName,
+});
 
-  console.log("ZenML instance created:", zenmlServerUrl);
+export const createWorkspaceService = async (params: CreateWorkspaceParams) => {
+  let containerId: string | undefined;
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  console.log(
+    `Starting transaction for creating workspace ${params.workspaceName}`,
+  );
 
-  // 2️⃣ Get workspace info
-  const info = await waitForZenML(() => getWorkspaceInfo(zenmlServerUrl));
+  try {
+    const { workspaceName, jnjUsername, zenmlUsername } = params;
 
-  // 3️⃣ Activate workspace
-  const activateWorkspacePayload = {
-    admin_password: zenmlPassword,
-    admin_username: zenmlUsername,
-    server_name: workspaceName,
-  };
+    // 1 Generate credentials
+    // const zenmlUsername = generateZenMLUsername();
+    const zenmlPassword = generateZenMLPassword();
 
-  await activateWorkspace(zenmlServerUrl, activateWorkspacePayload);
+    // 2 Create container
+    const instance = await createZenMLInstance();
 
-  // 4️⃣ Save workspace in DB
-  const workspace = await saveWorkspaceToDB({
-    workspaceId: info.id,
-    workspaceName,
-    zenmlServerUrl,
-    containerId,
-  });
+    containerId = instance.containerId;
+    const zenmlServerUrl = instance.url;
 
-  if (!workspace) {
-    console.log(workspace);
-    throw new Error("Workspace creation failed");
+    // 3 Get workspace info
+    const workspaceInfo = await waitForZenML(() =>
+      getWorkspaceInfo(zenmlServerUrl),
+    );
+
+    // 4 Activate workspace
+    await activateWorkspace(
+      zenmlServerUrl,
+      buildActivationPayload(zenmlUsername, zenmlPassword, workspaceName),
+    );
+
+    // 5 Save workspace
+    const workspace = await saveWorkspaceToDB(
+      {
+        workspaceId: workspaceInfo.id,
+        workspaceName,
+        zenmlServerUrl,
+        containerId,
+      },
+      session,
+    );
+
+    // 6 Save identity
+    await saveIdentityToDB(
+      {
+        workspaceId: workspace._id,
+        jnjUsername,
+        zenmlUsername,
+        zenmlPasswordEncrypted: zenmlPassword,
+        identityType: "user",
+        status: "active",
+        role: "admin",
+      },
+      session,
+    );
+
+    // 7 Commit transaction
+    await session.commitTransaction();
+
+    console.log(
+      `Workspace ${workspaceName} created successfully with workspace ID ${workspaceInfo.id} and deployed on server ${zenmlServerUrl}`,
+    );
+    return {
+      workspaceId: workspaceInfo.id,
+      workspaceName,
+      zenmlServerUrl,
+      containerId,
+    };
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+
+    // cleanup infra
+    if (containerId) {
+      await destroyZenMLInstance(containerId);
+    }
+    throw error;
+  } finally {
+    session.endSession();
   }
-
-  await saveIdentityToDB({
-    workspaceId: workspace._id,
-    jnjUsername,
-    zenmlUsername,
-    zenmlPasswordEncrypted: encrypt(zenmlPassword),
-    identityType: "user",
-    status: "active",
-    role: "admin",
-  });
-
-  return {
-    workspaceId: info.id,
-    workspaceName,
-    zenmlServerUrl,
-    containerId,
-  };
 };

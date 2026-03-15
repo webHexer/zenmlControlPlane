@@ -1,9 +1,15 @@
-export const zenmlRequest = async (
-  url: string,
-  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
-  body?: any,
-  token?: string,
-) => {
+interface ZenMLRequestParams {
+  url: string;
+  method: "GET" | "POST" | "PUT" | "DELETE";
+  body?: any;
+  token?: string;
+}
+export const zenmlRequest = async ({
+  url,
+  method,
+  body,
+  token,
+}: ZenMLRequestParams) => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 2000);
 

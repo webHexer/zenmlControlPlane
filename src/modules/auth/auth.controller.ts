@@ -14,15 +14,3 @@ export const loginToWorkspace = async (
     next(err);
   }
 };
-
-// login to service account and create auth session
-export const loginToServiceAccount = async (req: Request, res: Response) => {
-  const result = await authService.loginToServiceAccount(req.body);
-  res.json(result);
-};
-
-// login to user account and create auth session
-export const loginToUserAccount = async (req: Request, res: Response) => {
-  const result = await authService.loginToUserAccount(req.body);
-  res.json(result);
-};

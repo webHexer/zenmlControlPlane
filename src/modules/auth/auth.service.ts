@@ -1,11 +1,7 @@
-import { Workspace } from "../../models/workspace.model";
-import { WorkspaceIdentity } from "../../models/workspaceIdentity.model";
-import { WorkspaceAuthSession } from "../../models/workspaceAuthSession.model";
 import { AppError } from "../../utils/AppError";
 import { findIdentity } from "../../repositories/identity.repository";
 import { findWorkspaceByName } from "../../repositories/workspace.repository";
 import { storeAuthSession } from "../../repositories/authSession.repository";
-import { decrypt } from "../../utils/crypto";
 
 export const loginToWorkspace = async ({ workspaceName, jnjUsername }: any) => {
   try {
@@ -31,7 +27,7 @@ export const loginToWorkspace = async ({ workspaceName, jnjUsername }: any) => {
       // For identityType "user", we need to login to ZenML server to get the access token
       const params = new URLSearchParams();
       params.append("username", identity.zenmlUsername!);
-      params.append("password", decrypt(identity.zenmlPasswordEncrypted!));
+      params.append("password", identity.zenmlPasswordEncrypted!);
 
       const loginResponse = await fetch(
         `${workspace.zenmlServerUrl}/api/v1/login`,
@@ -68,88 +64,4 @@ export const loginToWorkspace = async ({ workspaceName, jnjUsername }: any) => {
   } catch (error: any) {
     throw error;
   }
-};
-
-export const loginToServiceAccount = async ({
-  workspaceName,
-  jnjUsername,
-}: any) => {
-  const workspace = await Workspace.findOne({ workspaceName });
-  if (!workspace) throw new Error("Workspace not found");
-
-  const identity = await WorkspaceIdentity.findOne({
-    workspace: workspace._id,
-    jnjUsername,
-    status: "active",
-  }).populate("serviceAccount");
-
-  if (!identity) throw new Error("Identity not found");
-
-  const apiKey = (identity.serviceAccount as any)?.apiKey;
-
-  await WorkspaceAuthSession.findOneAndUpdate(
-    { workspace: workspace._id, identity: identity._id },
-    {
-      workspace: workspace._id,
-      identity: identity._id,
-      authType: "apiKey",
-      credentials: apiKey,
-      lastUsedAt: new Date(),
-    },
-    { upsert: true },
-  );
-
-  return { message: "Service account login successful" };
-};
-
-export const loginToUserAccount = async ({
-  workspaceName,
-  jnjUsername,
-}: any) => {
-  const workspace = await Workspace.findOne({ workspaceName });
-  if (!workspace) throw new Error("Workspace not found");
-
-  const identity = await WorkspaceIdentity.findOne({
-    workspace: workspace._id,
-    jnjUsername,
-    status: "active",
-  });
-
-  if (!identity) throw new Error("User not mapped");
-
-  const params = new URLSearchParams();
-  params.append("username", identity.zenmlUsername!);
-  params.append("password", identity.zenmlPasswordEncrypted!);
-
-  const loginResponse = await fetch(
-    `${workspace.zenmlServerUrl}/api/v1/login`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: params,
-    },
-  );
-
-  if (!loginResponse.ok) {
-    throw new Error("ZenML login failed");
-  }
-
-  const result = await loginResponse.json();
-
-  const expiresAt = new Date(Date.now() + 4 * 60 * 60 * 1000);
-
-  await WorkspaceAuthSession.findOneAndUpdate(
-    { workspace: workspace._id, identity: identity._id },
-    {
-      workspace: workspace._id,
-      identity: identity._id,
-      authType: "accessToken",
-      credentials: result.access_token,
-      expiresAt,
-      lastUsedAt: new Date(),
-    },
-    { upsert: true },
-  );
-
-  return { message: "User login successful" };
 };

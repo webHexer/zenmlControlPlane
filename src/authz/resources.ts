@@ -1,7 +1,7 @@
 export enum Resource {
-  USER_ACCOUNT = "user_account",
-  SERVICE_ACCOUNT = "service_account",
+  SERVICE_ACCOUNT = "service_accounts",
   PIPELINE = "pipeline",
+  USERS = "users",
   STACK = "stack",
   PROJECTS = "projects",
 }

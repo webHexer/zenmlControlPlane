@@ -1,4 +1,4 @@
-import { ENDPOINTS } from "../constants/endpoints";
+import { API_ENDPOINTS } from "../constants/endpoints";
 import { zenmlRequest } from "./zenml.client";
 
 interface createUserBodyType {
@@ -19,12 +19,24 @@ export const createUser = async (
   body: createUserBodyType,
   token: string,
 ) => {
-  return zenmlRequest(
-    `${zenmlServerUrl}${ENDPOINTS.CREATE_USER}`,
-    "POST",
+  return zenmlRequest({
+    url: `${zenmlServerUrl}${API_ENDPOINTS.CREATE_USER}`,
+    method: "POST",
     body,
     token,
-  );
+  });
+};
+
+export const deleteUser = async (
+  zenmlServerUrl: string,
+  zenmlUsername: string,
+  token: string,
+) => {
+  return zenmlRequest({
+    url: `${zenmlServerUrl}${API_ENDPOINTS.DELETE_USER(zenmlUsername)}`,
+    method: "DELETE",
+    token,
+  });
 };
 
 export const activateUser = async (
@@ -33,10 +45,10 @@ export const activateUser = async (
   body: ActivateUserBodyType,
   token: string,
 ) => {
-  return zenmlRequest(
-    `${zenmlServerUrl}${ENDPOINTS.ACTIVATE_USER(userId)}`,
-    "PUT",
+  return zenmlRequest({
+    url: `${zenmlServerUrl}${API_ENDPOINTS.ACTIVATE_USER(userId)}`,
+    method: "PUT",
     body,
     token,
-  );
+  });
 };

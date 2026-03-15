@@ -1,12 +1,10 @@
-import { ENDPOINTS } from "../constants/endpoints";
+import { API_ENDPOINTS } from "../constants/endpoints";
 import { zenmlRequest } from "./zenml.client";
-
 export interface ServiceUserBodyType {
   name: string;
   description: string;
   active: boolean;
 }
-
 export interface ActivateServiceUserBodyType {
   name: string;
   description: string;
@@ -17,12 +15,24 @@ export const createServiceUser = async (
   body: ServiceUserBodyType,
   token: string,
 ) => {
-  return zenmlRequest(
-    `${zenmlServerUrl}${ENDPOINTS.CREATE_SERVICE_USER}`,
-    "POST",
+  return zenmlRequest({
+    url: `${zenmlServerUrl}${API_ENDPOINTS.CREATE_SERVICE_USER}`,
+    method: "POST",
     body,
     token,
-  );
+  });
+};
+
+export const deleteServiceUser = async (
+  zenmlServerUrl: string,
+  serviceUsername: string,
+  token: string,
+) => {
+  return zenmlRequest({
+    url: `${zenmlServerUrl}${API_ENDPOINTS.DELETE_SERVICE_USER(serviceUsername)}`,
+    method: "DELETE",
+    token,
+  });
 };
 
 export const activateServiceUser = async (
@@ -31,10 +41,10 @@ export const activateServiceUser = async (
   body: ActivateServiceUserBodyType,
   token: string,
 ) => {
-  return zenmlRequest(
-    `${zenmlServerUrl}${ENDPOINTS.ACTIVATE_SERVICE_USER(serviceUserId)}`,
-    "POST",
+  return zenmlRequest({
+    url: `${zenmlServerUrl}${API_ENDPOINTS.ACTIVATE_SERVICE_USER(serviceUserId)}`,
+    method: "POST",
     body,
     token,
-  );
+  });
 };

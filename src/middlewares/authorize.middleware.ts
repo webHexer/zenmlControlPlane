@@ -3,6 +3,7 @@ import { authorize } from "../authz/authorize";
 import { Action } from "../authz/actions";
 import { Resource } from "../authz/resources";
 import { AppError } from "../utils/AppError";
+import { Role } from "../authz/roles";
 
 export const requirePermission =
   (
@@ -29,7 +30,7 @@ export const requirePermission =
         resource,
         action,
       });
-
+      console.log(Role, resource, action);
       if (!allowed) {
         throw new AppError("Access denied", 403);
       }

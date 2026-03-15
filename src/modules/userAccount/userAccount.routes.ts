@@ -25,7 +25,7 @@ router.post(
   "/createUserAccount",
   authenticate, // authenticate the user
   requirePermission({
-    resource: Resource.USER_ACCOUNT,
+    resource: Resource.USERS,
     action: Action.CREATE_USER_ACCOUNT,
   }), // check if the user has permission to create a user account
   createUserAccount,
