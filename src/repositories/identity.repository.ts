@@ -8,7 +8,7 @@ interface saveIdentityToDBParams {
   status: string;
   serviceAccount?: Types.ObjectId;
   zenmlUsername?: string;
-  zenmlPasswordEncrypted?: string;
+  zenmlPassword?: string;
   role?: string;
 }
 
@@ -40,7 +40,7 @@ export const saveIdentityToDB = async (
       status: data.status,
       serviceAccount: data.serviceAccount,
       zenmlUsername: data.zenmlUsername,
-      zenmlPasswordEncrypted: data.zenmlPasswordEncrypted,
+      zenmlPassword: data.zenmlPassword,
       role: data.role,
     },
     { upsert: true, new: true, session },

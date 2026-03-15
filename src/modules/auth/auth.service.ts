@@ -27,7 +27,7 @@ export const loginToWorkspace = async ({ workspaceName, jnjUsername }: any) => {
       // For identityType "user", we need to login to ZenML server to get the access token
       const params = new URLSearchParams();
       params.append("username", identity.zenmlUsername!);
-      params.append("password", identity.zenmlPasswordEncrypted!);
+      params.append("password", identity.zenmlPassword!);
 
       const loginResponse = await fetch(
         `${workspace.zenmlServerUrl}/api/v1/login`,

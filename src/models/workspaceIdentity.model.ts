@@ -27,7 +27,7 @@ const workspaceIdentitySchema = new mongoose.Schema(
     },
 
     zenmlUsername: String,
-    zenmlPasswordEncrypted: String,
+    zenmlPassword: String,
 
     role: {
       type: String,

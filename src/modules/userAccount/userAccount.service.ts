@@ -8,6 +8,7 @@ import {
   deleteUser,
 } from "../../clients/user.client";
 import { generateZenMLPassword } from "../../utils/credentialGenerator";
+import { encrypt } from "../../utils/crypto";
 
 export const createUserAccount = async (req: Request) => {
   const { isAdmin, email, role, grantedToJNJUsername, zenmlUsername } =
@@ -20,7 +21,7 @@ export const createUserAccount = async (req: Request) => {
   try {
     // 1 Generate credentials
     // const zenmlUsername = generateZenMLUsername();
-    const zenmlPassword = generateZenMLPassword();
+    const encryptedPassword = encrypt(generateZenMLPassword());
     // const encryptedPassword = encrypt(zenmlPassword);
 
     // 2 Create user in ZenML
@@ -41,7 +42,7 @@ export const createUserAccount = async (req: Request) => {
       email,
       full_name: zenmlUsername,
       email_opted_in: Boolean(email),
-      password: zenmlPassword,
+      password: encryptedPassword,
     };
 
     await activateUser(
@@ -59,7 +60,7 @@ export const createUserAccount = async (req: Request) => {
       workspaceId: workspace._id,
       jnjUsername: grantedToJNJUsername,
       zenmlUsername,
-      zenmlPasswordEncrypted: zenmlPassword,
+      zenmlPassword: encryptedPassword,
       identityType: "user",
       status: "active",
       role: userRole,
@@ -74,8 +75,7 @@ export const createUserAccount = async (req: Request) => {
       `User account created for JNJ user ${grantedToJNJUsername} with ZenML username ${zenmlUsername}`,
     );
     return {
-      message: "User account created and activated successfully",
-      zenmlUsername,
+      message: `User account created for JNJ user ${grantedToJNJUsername} with ZenML username ${zenmlUsername}`,
     };
   } catch (error) {
     await session.abortTransaction();

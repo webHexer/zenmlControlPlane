@@ -9,6 +9,7 @@ import { waitForZenML } from "../../utils/waitForZenml";
 import { saveIdentityToDB } from "../../repositories/identity.repository";
 import mongoose from "mongoose";
 import { generateZenMLPassword } from "../../utils/credentialGenerator";
+import { encrypt } from "../../utils/crypto";
 
 interface CreateWorkspaceParams {
   workspaceName: string;
@@ -40,7 +41,7 @@ export const createWorkspaceService = async (params: CreateWorkspaceParams) => {
 
     // 1 Generate credentials
     // const zenmlUsername = generateZenMLUsername();
-    const zenmlPassword = generateZenMLPassword();
+    const encryptedPassword = encrypt(generateZenMLPassword());
 
     // 2 Create container
     const instance = await createZenMLInstance();
@@ -56,7 +57,7 @@ export const createWorkspaceService = async (params: CreateWorkspaceParams) => {
     // 4 Activate workspace
     await activateWorkspace(
       zenmlServerUrl,
-      buildActivationPayload(zenmlUsername, zenmlPassword, workspaceName),
+      buildActivationPayload(zenmlUsername, encryptedPassword, workspaceName),
     );
 
     // 5 Save workspace
@@ -76,7 +77,7 @@ export const createWorkspaceService = async (params: CreateWorkspaceParams) => {
         workspaceId: workspace._id,
         jnjUsername,
         zenmlUsername,
-        zenmlPasswordEncrypted: zenmlPassword,
+        zenmlPassword: encryptedPassword,
         identityType: "user",
         status: "active",
         role: "admin",
