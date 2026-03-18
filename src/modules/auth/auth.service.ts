@@ -1,43 +1,8 @@
-import { AppError } from "../../utils/AppError";
 import { findIdentity } from "../../repositories/identity.repository";
 import { findWorkspaceByName } from "../../repositories/workspace.repository";
 import { saveAuthSessionToDB } from "../../repositories/authSession.repository";
-import { decrypt } from "../../utils/crypto";
-interface LoginParams {
-  workspaceName: string;
-  jnjUsername: string;
-}
-
-type AuthType = "apiKey" | "accessToken";
-
-interface ZenMLTokenResponse {
-  access_token: string;
-}
-
-const loginToZenML = async (
-  serverUrl: string,
-  username: string,
-  encryptedPassword: string,
-): Promise<string> => {
-  const password = decrypt(encryptedPassword);
-
-  const params = new URLSearchParams();
-  params.append("username", username);
-  params.append("password", password);
-
-  const response = await fetch(`${serverUrl}/api/v1/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: params,
-  });
-
-  if (!response.ok) {
-    throw new AppError("ZenML login failed");
-  }
-
-  const result: ZenMLTokenResponse = await response.json();
-  return result.access_token;
-};
+import { AuthType, LoginParams } from "../auth/auth.types";
+import { loginToZenML } from "./helper";
 
 export const loginToWorkspace = async ({
   workspaceName,
@@ -45,24 +10,23 @@ export const loginToWorkspace = async ({
 }: LoginParams) => {
   // 1 Find workspace
   const workspace = await findWorkspaceByName(workspaceName);
-  if (!workspace) throw new AppError("Workspace not found");
+  if (!workspace) throw new Error("Workspace not found");
 
   // 2 Find identity
   const identity = await findIdentity(workspace._id, jnjUsername);
-  if (!identity) throw new AppError("User not mapped to workspace");
+  if (!identity) throw new Error("User not mapped to workspace");
 
   const account: any = identity.account;
 
   let token: string;
   let authType: AuthType;
   let expiresAt: Date | null = null;
-  console.log("account", account);
 
   // 3 Resolve authentication method
   switch (identity.accountType) {
     case "ServiceAccount":
       if (!account?.apiKey) {
-        throw new AppError("Service account API key missing");
+        throw new Error("Service account API key missing");
       }
 
       token = account.apiKey;
@@ -71,7 +35,7 @@ export const loginToWorkspace = async ({
 
     case "UserAccount":
       if (!account?.zenmlUsername || !account?.zenmlPassword) {
-        throw new AppError("User account credentials missing");
+        throw new Error("User account credentials missing");
       }
 
       token = await loginToZenML(
@@ -85,7 +49,7 @@ export const loginToWorkspace = async ({
       break;
 
     default:
-      throw new AppError("Invalid identity type");
+      throw new Error("Invalid identity type");
   }
 
   // 4 Store auth session
@@ -98,7 +62,7 @@ export const loginToWorkspace = async ({
   });
 
   if (!session) {
-    throw new AppError("Failed to create auth session");
+    throw new Error("Failed to create auth session");
   }
 
   return { message: "Login successful" };

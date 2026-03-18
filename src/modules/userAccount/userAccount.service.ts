@@ -1,23 +1,24 @@
 import { Request } from "express";
 import mongoose from "mongoose";
 
-import { saveIdentityInDB } from "../../repositories/identity.repository";
-import { saveUserAccountInDB } from "../../repositories/userAccount.repository";
-import {
-  activateUser,
-  createUser,
-  deleteUser,
-} from "../../clients/user.client";
 import { generateZenMLPassword } from "../../utils/credentialGenerator";
 import { encrypt } from "../../utils/crypto";
-import { AppError } from "../../utils/AppError";
+import {
+  activateZenmlUser,
+  createZenmlUser,
+  rollbackZenmlUser,
+  saveUserAccountAndIdentity,
+} from "./helper";
 
 export const createUserAccount = async (req: Request) => {
-  const { isAdmin, email, role, grantedToJNJUsername, zenmlUsername } =
-    req.body;
+  const { email, role, grantedToJNJUsername, zenmlUsername } = req.body;
 
   if (!req.context) {
     throw new Error("Request context missing");
+  }
+
+  if (!zenmlUsername || !grantedToJNJUsername) {
+    throw new Error("Missing required fields");
   }
 
   const { workspace, token } = req.context;
@@ -25,7 +26,7 @@ export const createUserAccount = async (req: Request) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
-  let rollbackZenmlUserId: string | undefined;
+  let zenmlUserId: string | undefined;
 
   try {
     // 1 Generate password
@@ -33,89 +34,54 @@ export const createUserAccount = async (req: Request) => {
     const encryptedPassword = encrypt(zenmlPassword);
 
     // 2 Create ZenML user
-    const createUserPayload = {
-      is_admin: isAdmin,
-      name: zenmlUsername,
-    };
-
-    const userResponse = await createUser(
+    const userResponse = await createZenmlUser(
       workspace.zenmlServerUrl,
-      createUserPayload,
+      zenmlUsername,
+      role === "admin" ? true : false,
       token,
     );
 
-    if (!userResponse?.id) {
-      throw new AppError("Failed to create ZenML user");
-    }
-
-    const zenmlUserId = userResponse.id;
-    rollbackZenmlUserId = zenmlUserId;
+    zenmlUserId = userResponse.id;
 
     // 3 Activate ZenML user
-    const activateUserPayload = {
-      activation_token: userResponse.body.activation_token,
-      email,
-      full_name: zenmlUsername,
-      email_opted_in: Boolean(email),
-      password: zenmlPassword,
-    };
-
-    await activateUser(
+    await activateZenmlUser(
       workspace.zenmlServerUrl,
-      zenmlUserId,
-      activateUserPayload,
+      userResponse,
+      email,
+      zenmlUsername,
+      zenmlPassword,
       token,
     );
 
-    // 4 Determine role
-    const userRole = role ?? (isAdmin ? "admin" : "viewer");
+    // // 4 Determine role
+    // const userRole = role ?? (isAdmin ? "admin" : "viewer");
 
-    // 5 Save UserAccount document
-    const userAccount = await saveUserAccountInDB(
-      {
-        workspace: workspace._id,
-        jnjUsername: grantedToJNJUsername,
-        zenmlUsername,
-        zenmlPassword: encryptedPassword,
-        role: userRole,
-      },
+    // 5 Save user account + identity
+    await saveUserAccountAndIdentity(
+      workspace._id,
+      grantedToJNJUsername,
+      zenmlUsername,
+      encryptedPassword,
+      role ?? (isAdmin ? "admin" : "viewer"),
       session,
     );
 
-    if (!userAccount) {
-      throw new AppError("Failed to create user account record");
-    }
-
-    // 6 Save WorkspaceIdentity
-    await saveIdentityInDB(
-      {
-        workspace: workspace._id,
-        jnjUsername: grantedToJNJUsername,
-        accountType: "UserAccount",
-        account: userAccount._id,
-      },
-      session,
-    );
-
-    // 7 Commit transaction
     await session.commitTransaction();
 
     return {
-      message: `User account created for JNJ user ${grantedToJNJUsername} with ZenML username ${zenmlUsername}`,
+      message: "User account created successfully.",
+      jnjUsername: grantedToJNJUsername,
+      zenmlUsername,
     };
   } catch (error) {
     await session.abortTransaction();
 
     // rollback ZenML user
-    if (rollbackZenmlUserId) {
-      try {
-        await deleteUser(workspace.zenmlServerUrl, rollbackZenmlUserId, token);
-      } catch (rollbackError) {
-        console.error("Failed to rollback ZenML user:", rollbackError);
-      }
+    if (zenmlUserId) {
+      await rollbackZenmlUser(workspace.zenmlServerUrl, zenmlUserId, token);
     }
 
-    throw new Error("Failed to create user account");
+    throw error;
   } finally {
     session.endSession();
   }

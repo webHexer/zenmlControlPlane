@@ -116,7 +116,7 @@ export const createWorkspaceService = async (params: CreateWorkspaceParams) => {
     if (containerId) {
       await destroyZenMLInstance(containerId);
     }
-    throw new Error("Failed to create workspace");
+    throw error;
   } finally {
     session.endSession();
   }
