@@ -4,7 +4,6 @@ interface saveWorkspaceParams {
   workspaceId: string;
   workspaceName: string;
   zenmlServerUrl: string;
-  containerId: string;
 }
 
 export const findWorkspaceByName = async (workspaceName: string) => {
@@ -21,7 +20,6 @@ export const saveWorkspaceToDB = async (
         workspaceId: data.workspaceId,
         workspaceName: data.workspaceName,
         zenmlServerUrl: data.zenmlServerUrl,
-        containerId: data.containerId,
       },
     ],
     { session }, // ✅ important

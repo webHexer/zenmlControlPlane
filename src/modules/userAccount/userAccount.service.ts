@@ -62,7 +62,7 @@ export const createUserAccount = async (req: Request) => {
       grantedToJNJUsername,
       zenmlUsername,
       encryptedPassword,
-      role ?? (isAdmin ? "admin" : "viewer"),
+      role ?? "viewer",
       session,
     );
 

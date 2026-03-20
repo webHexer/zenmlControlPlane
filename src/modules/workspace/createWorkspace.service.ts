@@ -11,6 +11,8 @@ import mongoose from "mongoose";
 import { generateZenMLPassword } from "../../utils/credentialGenerator";
 import { encrypt } from "../../utils/crypto";
 import { saveUserAccountInDB } from "../../repositories/userAccount.repository";
+import { generateValuesYaml } from "./gitops/helmValues.service";
+import { pushWorkspaceToGit } from "./gitops/git.service";
 
 interface CreateWorkspaceParams {
   workspaceName: string;
@@ -29,6 +31,16 @@ const buildActivationPayload = (
   server_name: workspaceName,
 });
 
+const getZenmlUrl = (workspace: string) => {
+  // const isLocal = process.env.RUN_ENV === "local";
+
+  // if (isLocal) {
+  //   return process.env.ZENML_BASE_URL!; // e.g. http://localhost:8082
+  // }
+
+  return `http://zenml-service-${workspace}.zenml.svc.cluster.local`;
+};
+
 export const createWorkspaceService = async (params: CreateWorkspaceParams) => {
   let containerId: string | undefined;
 
@@ -43,15 +55,18 @@ export const createWorkspaceService = async (params: CreateWorkspaceParams) => {
     const { workspaceName, jnjUsername, zenmlUsername } = params;
 
     // 1 Generate credentials
-    // const zenmlUsername = generateZenMLUsername();
     const rawPassword = generateZenMLPassword();
     const encryptedPassword = encrypt(rawPassword);
 
-    // 2 Create container
-    const instance = await createZenMLInstance();
+    // 2 Generate Helm values.yaml
+    const valuesYaml = generateValuesYaml(workspaceName);
 
-    containerId = instance.containerId;
-    const zenmlServerUrl = instance.url;
+    // 3 Push to Git (THIS triggers deployment)
+    await pushWorkspaceToGit(workspaceName, valuesYaml);
+
+    // 4 Construct future service URL (IMPORTANT)
+    // const zenmlServerUrl = getZenmlUrl(workspaceName);
+    const zenmlServerUrl = `http://zenml-service-${workspaceName}.zenml.svc.cluster.local`;
 
     // 3 Get workspace info
     const workspaceInfo = await waitForZenML(() =>
@@ -74,7 +89,6 @@ export const createWorkspaceService = async (params: CreateWorkspaceParams) => {
         workspaceId: workspaceInfo.id,
         workspaceName,
         zenmlServerUrl,
-        containerId,
       },
       session,
     );
